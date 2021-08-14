@@ -32,61 +32,82 @@ RegPosSets::RegPosSets(const RegSymbol symbol)
 
 RegPosSets RegPosSets::concat(const RegPosSets &other) const {
     auto copy = *this;
-
-    copy.is_nullable_flag = copy.is_nullable_flag && other.is_nullable_flag;
-    if (this->is_nullable_flag) {
-        append_to_left(
-            copy.first_set,
-            other.first_set
-        );
-    }
-
-    if (!other.is_nullable_flag) {
-        copy.last_set = other.last_set;
-    } else {
-        append_to_left(
-            copy.last_set,
-            other.last_set
-        );
-    }
-
-    for (auto &&left_last_pos : last_set) {
-        copy.set_follow_pos(left_last_pos, other.first_set);
-    }
-
-    copy.append_required_info(other);
+    copy.concat_inplace(other);
 
     return copy;
 }
 
 RegPosSets RegPosSets::or(const RegPosSets &other) const {
     auto copy = *this;
-
-    copy.is_nullable_flag = copy.is_nullable_flag || other.is_nullable_flag;
-    append_to_left(
-        copy.first_set,
-        other.first_set
-    );
-
-    append_to_left(
-        copy.last_set,
-        other.last_set
-    );
-
-    copy.append_required_info(other);
+    copy.or_inplace(other);
 
     return copy;
 }
 
 RegPosSets RegPosSets::star() const {
     auto copy = *this;
-    copy.is_nullable_flag = true;
-
-    for (auto &&first_pos : copy.first_set) {
-        copy.set_follow_pos(first_pos, copy.last_set);
-    }
+    copy.star_inplace();
 
     return copy;
+}
+
+RegPosSets RegPosSets::nullable() const {
+    auto copy = *this;
+    copy.nullable_inplace();
+
+    return copy;
+}
+
+void RegPosSets::concat_inplace(const RegPosSets &other) {
+    for (auto &&left_last_pos : last_set) {
+        set_follow_pos(left_last_pos, other.first_set);
+    }
+
+    if (this->is_nullable_flag) {
+        append_to_left(
+            first_set,
+            other.first_set
+        );
+    }
+
+    if (!other.is_nullable_flag) {
+        last_set = other.last_set;
+    } else {
+        append_to_left(
+            last_set,
+            other.last_set
+        );
+    }
+
+    is_nullable_flag = is_nullable_flag && other.is_nullable_flag;
+    append_required_info(other);
+}
+
+void RegPosSets::or_inplace(const RegPosSets &other) {
+    is_nullable_flag = is_nullable_flag || other.is_nullable_flag;
+    append_to_left(
+        first_set,
+        other.first_set
+    );
+
+    append_to_left(
+        last_set,
+        other.last_set
+    );
+
+    append_required_info(other);
+}
+
+void RegPosSets::star_inplace() {
+    is_nullable_flag = true;
+
+    for (auto &&first_pos : first_set) {
+        set_follow_pos(first_pos, last_set);
+    }
+}
+
+void RegPosSets::nullable_inplace() {
+    is_nullable_flag = true;
 }
 
 const RegPosSets::SymbolPosSet &RegPosSets::first() const {

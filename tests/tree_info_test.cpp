@@ -249,6 +249,15 @@ TEST_CASE("Test Star Or", "[RegPosSets]") {
     CHECK(expr_pos_sets.is_nullable());
 }
 
+TEST_CASE("Test nullable", "[RegPosSets]") {
+    auto expr = RegPosSets("a").or("b").concat("c");
+
+    CHECK(!expr.is_nullable());
+
+    auto nullable_expr = expr.nullable();
+    CHECK(nullable_expr.is_nullable());
+}
+
 TEST_CASE("Test generic expr", "[RegPosSets]") {
     RegPosSets a[] = {
         "a",

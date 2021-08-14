@@ -24,6 +24,12 @@ public:
     RegPosSets concat(const RegPosSets &) const;
     RegPosSets or(const RegPosSets &) const;
     RegPosSets star() const;
+    RegPosSets nullable() const;
+
+    void concat_inplace(const RegPosSets &);
+    void or_inplace(const RegPosSets &);
+    void star_inplace();
+    void nullable_inplace();
 
     const SymbolPosSet &first() const;
     const SymbolPosSet &last() const;
