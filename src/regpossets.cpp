@@ -18,7 +18,7 @@ RegPosSets::RegPosSets(const char *reg_symbol)
 {}
 
 RegPosSets::RegPosSets(const RegSymbol symbol)
-    : first_set(), last_set(), follow_set(), symbol_occurrences(), is_nullable_flag(false)
+    : first_set(), last_set(), follow_set(), symbol_occurrences_set(), is_nullable_flag(false)
 {
     auto symbol_pos = next_unique_pos();
 
@@ -27,7 +27,7 @@ RegPosSets::RegPosSets(const RegSymbol symbol)
     last_set = one_symbol_set;
     follow_set.emplace(symbol_pos, SymbolPosSet());
 
-    symbol_occurrences.emplace(symbol, symbol_pos);
+    symbol_occurrences_set.emplace(symbol, symbol_pos);
 }
 
 RegPosSets RegPosSets::concat(const RegPosSets &other) const {
@@ -110,6 +110,11 @@ void RegPosSets::nullable_inplace() {
     is_nullable_flag = true;
 }
 
+const std::unordered_map<RegSymbol, RegPosSets::SymbolPosSet> &
+RegPosSets::symbol_occurrences() const {
+    return symbol_occurrences_set;
+}
+
 const RegPosSets::SymbolPosSet &RegPosSets::first() const {
     return first_set;
 }
@@ -145,8 +150,8 @@ void RegPosSets::set_follow_pos(
 
 void RegPosSets::append_required_info(const RegPosSets &other) {
     append_to_left(
-        symbol_occurrences,
-        other.symbol_occurrences
+        symbol_occurrences_set,
+        other.symbol_occurrences_set
     );
 
     append_to_left(

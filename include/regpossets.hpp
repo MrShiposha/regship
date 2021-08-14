@@ -36,6 +36,8 @@ public:
     const SymbolPosSet &follow(SymbolPos) const;
     bool is_nullable() const;
 
+    const std::unordered_map<RegSymbol, SymbolPosSet> &symbol_occurrences() const;
+
 private:
     RegPosSets(const RegPosSets &) = default;
     RegPosSets(RegPosSets &&) = default;
@@ -45,7 +47,7 @@ private:
 
     SymbolPosSet first_set, last_set;
     std::unordered_map<SymbolPos, SymbolPosSet> follow_set;
-    std::unordered_map<RegSymbol, SymbolPosSet> symbol_occurrences;
+    std::unordered_map<RegSymbol, SymbolPosSet> symbol_occurrences_set;
 
     bool is_nullable_flag;
 };
