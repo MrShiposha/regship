@@ -4,8 +4,25 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <functional>
+#include <vector>
 
 #include "regpossets.hpp"
+#include "util.hpp"
+
+namespace regship_impl {
+    using State = size_t;
+    using StateTransition = std::pair<State, RegSymbol>;
+}
+
+namespace std {
+    template <>
+    struct hash<regship_impl::StateTransition> {
+        size_t operator()(const regship_impl::StateTransition &transition) const {
+            using Hasher = std::hash<RegSymbol>;
+            return combine_hashes(transition.first, Hasher{}(transition.second));
+        }
+    };
+}
 
 class RegDFA {
 public:
@@ -14,10 +31,14 @@ public:
         std::function<void()> action;
     };
 
-    enum class TransitionResult {
+    enum TransitionResult {
         SUCCESS,
-        DEADLOCK
+        DEADSTATE
     };
+
+    using State           = regship_impl::State;
+    using StateTransition = regship_impl::StateTransition;
+    using PosActions      = std::vector<PosAction>;
 
     RegDFA() = delete;
     RegDFA(const RegDFA &) = delete;
@@ -29,21 +50,20 @@ public:
 
     ~RegDFA() = default;
 
-    TransitionResult do_transition(RegPosSets::SymbolPos);
+    TransitionResult do_transition(const RegSymbol);
 
     void set_pos_action(RegPosSets::SymbolPos, PosAction);
 
-    std::unordered_set<PosAction> current_pos_actions();
+    const PosActions &current_pos_actions() const;
+
+    State current_state() const;
+
+    void set_current_state(State);
 
 private:
-    using State              = size_t;
-    using StateAndTransition = size_t;
-
-    StateAndTransition make_dfa_table_key(const RegSymbol);
-
-    std::unordered_map<StateAndTransition, State> dfa_table;
-    std::unordered_map<State, PosAction> pos_actions;
-    State current_state;
+    std::unordered_map<StateTransition, State> dfa_table;
+    std::unordered_map<State, PosActions> pos_actions;
+    State dfa_current_state;
 };
 
 #endif // ___REGSHIP_REGDFA_HPP___
