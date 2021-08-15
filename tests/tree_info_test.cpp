@@ -2,6 +2,14 @@
 
 #include "regpossets.hpp"
 
+TEST_CASE("Test no symbol pos sets", "RegPosSets") {
+    RegPosSets empty("");
+
+    CHECK(empty.first().empty());
+    CHECK(empty.last().empty());
+    CHECK(empty.is_nullable());
+}
+
 TEST_CASE("Test one symbol pos sets", "[RegPosSets]") {
     RegPosSets pos_sets("a");
 
@@ -13,6 +21,9 @@ TEST_CASE("Test one symbol pos sets", "[RegPosSets]") {
     auto pos = *pos_sets.first().cbegin();
 
     CHECK(pos_sets.follow(pos).empty());
+
+    REQUIRE(pos_sets.symbol_occurrences().count("a") > 0);
+    CHECK(pos_sets.symbol_occurrences().at("a") == pos_sets.first());
 }
 
 TEST_CASE("Test Concat", "[RegPosSets]") {
@@ -30,6 +41,11 @@ TEST_CASE("Test Concat", "[RegPosSets]") {
 
     CHECK(ab_pos_sets.follow(pos_a) == b_pos_sets.first());
     CHECK(ab_pos_sets.follow(pos_b).empty());
+
+    REQUIRE(ab_pos_sets.symbol_occurrences().count("a") > 0);
+    REQUIRE(ab_pos_sets.symbol_occurrences().count("b") > 0);
+    CHECK(ab_pos_sets.symbol_occurrences().at("a") == ab_pos_sets.first());
+    CHECK(ab_pos_sets.symbol_occurrences().at("b") == ab_pos_sets.last());
 }
 
 TEST_CASE("Test Or", "[RegPosSets]") {
@@ -59,6 +75,11 @@ TEST_CASE("Test Or", "[RegPosSets]") {
 
     CHECK(a_or_b_pos_sets.follow(pos_a).empty());
     CHECK(a_or_b_pos_sets.follow(pos_b).empty());
+
+    REQUIRE(a_or_b_pos_sets.symbol_occurrences().count("a") > 0);
+    REQUIRE(a_or_b_pos_sets.symbol_occurrences().count("b") > 0);
+    CHECK(a_or_b_pos_sets.symbol_occurrences().at("a") == a_pos_sets.first());
+    CHECK(a_or_b_pos_sets.symbol_occurrences().at("b") == b_pos_sets.first());
 }
 
 TEST_CASE("Test Star", "[RegPosSets]") {
@@ -73,6 +94,9 @@ TEST_CASE("Test Star", "[RegPosSets]") {
     auto pos = *star_pos_sets.first().cbegin();
 
     CHECK(star_pos_sets.follow(pos) == star_pos_sets.last());
+
+    REQUIRE(star_pos_sets.symbol_occurrences().count("a") > 0);
+    CHECK(star_pos_sets.symbol_occurrences().at("a") == star_pos_sets.first());
 }
 
 TEST_CASE("Test Concat Or", "[RegPosSets]") {
@@ -106,6 +130,13 @@ TEST_CASE("Test Concat Or", "[RegPosSets]") {
     CHECK(ab_or_c_pos_set.follow(pos_b).empty());
     CHECK(ab_or_c_pos_set.follow(pos_c).empty());
     CHECK(!ab_or_c_pos_set.is_nullable());
+
+    REQUIRE(ab_or_c_pos_set.symbol_occurrences().count("a") > 0);
+    REQUIRE(ab_or_c_pos_set.symbol_occurrences().count("b") > 0);
+    REQUIRE(ab_or_c_pos_set.symbol_occurrences().count("c") > 0);
+    CHECK(ab_or_c_pos_set.symbol_occurrences().at("a") == a_pos_sets.first());
+    CHECK(ab_or_c_pos_set.symbol_occurrences().at("b") == b_pos_sets.first());
+    CHECK(ab_or_c_pos_set.symbol_occurrences().at("c") == c_pos_sets.first());
 }
 
 TEST_CASE("Test Or Concat", "[RegPosSets]") {
@@ -130,6 +161,13 @@ TEST_CASE("Test Or Concat", "[RegPosSets]") {
     CHECK(a_or_b_c_pos_set.follow(pos_b) == c_pos_sets.first());
     CHECK(a_or_b_c_pos_set.follow(pos_c).empty());
     CHECK(!a_or_b_c_pos_set.is_nullable());
+
+    REQUIRE(a_or_b_c_pos_set.symbol_occurrences().count("a") > 0);
+    REQUIRE(a_or_b_c_pos_set.symbol_occurrences().count("b") > 0);
+    REQUIRE(a_or_b_c_pos_set.symbol_occurrences().count("c") > 0);
+    CHECK(a_or_b_c_pos_set.symbol_occurrences().at("a") == a_pos_sets.first());
+    CHECK(a_or_b_c_pos_set.symbol_occurrences().at("b") == b_pos_sets.first());
+    CHECK(a_or_b_c_pos_set.symbol_occurrences().at("c") == c_pos_sets.first());
 }
 
 TEST_CASE("Test Concat Star", "[RegPosSets]") {
@@ -155,6 +193,11 @@ TEST_CASE("Test Concat Star", "[RegPosSets]") {
     CHECK(expr_pos_sets.follow(pos_a) == b_star_pos_set.first());
     CHECK(expr_pos_sets.follow(pos_b) == b_star_pos_set.first());
     CHECK(!expr_pos_sets.is_nullable());
+
+    REQUIRE(expr_pos_sets.symbol_occurrences().count("a") > 0);
+    REQUIRE(expr_pos_sets.symbol_occurrences().count("b") > 0);
+    CHECK(expr_pos_sets.symbol_occurrences().at("a") == a_pos_sets.first());
+    CHECK(expr_pos_sets.symbol_occurrences().at("b") == b_pos_sets.first());
 }
 
 TEST_CASE("Test Star Concat", "[RegPosSets]") {
@@ -187,6 +230,11 @@ TEST_CASE("Test Star Concat", "[RegPosSets]") {
     CHECK(expr_pos_sets.follow(pos_a) == expected_follow_a);
     CHECK(expr_pos_sets.follow(pos_b).empty());
     CHECK(!expr_pos_sets.is_nullable());
+
+    REQUIRE(expr_pos_sets.symbol_occurrences().count("a") > 0);
+    REQUIRE(expr_pos_sets.symbol_occurrences().count("b") > 0);
+    CHECK(expr_pos_sets.symbol_occurrences().at("a") == a_pos_sets.first());
+    CHECK(expr_pos_sets.symbol_occurrences().at("b") == b_pos_sets.first());
 }
 
 TEST_CASE("Test Or Star", "[RegPosSets]") {
@@ -217,6 +265,11 @@ TEST_CASE("Test Or Star", "[RegPosSets]") {
     CHECK(expr_pos_sets.follow(pos_a).empty());
     CHECK(expr_pos_sets.follow(pos_b) == b_star_pos_set.first());
     CHECK(expr_pos_sets.is_nullable());
+
+    REQUIRE(expr_pos_sets.symbol_occurrences().count("a") > 0);
+    REQUIRE(expr_pos_sets.symbol_occurrences().count("b") > 0);
+    CHECK(expr_pos_sets.symbol_occurrences().at("a") == a_pos_sets.first());
+    CHECK(expr_pos_sets.symbol_occurrences().at("b") == b_pos_sets.first());
 }
 
 TEST_CASE("Test Star Or", "[RegPosSets]") {
@@ -247,6 +300,11 @@ TEST_CASE("Test Star Or", "[RegPosSets]") {
     CHECK(expr_pos_sets.follow(pos_a) == a_star_pos_set.first());
     CHECK(expr_pos_sets.follow(pos_b).empty());
     CHECK(expr_pos_sets.is_nullable());
+
+    REQUIRE(expr_pos_sets.symbol_occurrences().count("a") > 0);
+    REQUIRE(expr_pos_sets.symbol_occurrences().count("b") > 0);
+    CHECK(expr_pos_sets.symbol_occurrences().at("a") == a_pos_sets.first());
+    CHECK(expr_pos_sets.symbol_occurrences().at("b") == b_pos_sets.first());
 }
 
 TEST_CASE("Test nullable", "[RegPosSets]") {
@@ -300,4 +358,17 @@ TEST_CASE("Test generic expr", "[RegPosSets]") {
     CHECK(expr.follow(pos_b(1)) == b[2].first());
     CHECK(expr.follow(pos_b(2)).empty());
     CHECK(!expr.is_nullable());
+
+    REQUIRE(expr.symbol_occurrences().count("a") > 0);
+    REQUIRE(expr.symbol_occurrences().count("b") > 0);
+
+    auto a_pos_set = a[0].first();
+    a_pos_set.insert(a[1].first().cbegin(), a[1].first().cend());
+
+    auto b_pos_set = b[0].first();
+    b_pos_set.insert(b[1].first().cbegin(), b[1].first().cend());
+    b_pos_set.insert(b[2].first().cbegin(), b[2].first().cend());
+
+    CHECK(expr.symbol_occurrences().at("a") == a_pos_set);
+    CHECK(expr.symbol_occurrences().at("b") == b_pos_set);
 }
