@@ -10,8 +10,8 @@
 #include "util.hpp"
 
 namespace regship_impl {
-    using State = size_t;
-    using StateTransition = std::pair<State, RegSymbol>;
+    using StateId = size_t;
+    using StateTransition = std::pair<StateId, RegSymbol>;
 }
 
 namespace std {
@@ -26,9 +26,12 @@ namespace std {
 
 class RegDFA {
 public:
-    struct PosAction {
-        RegPosSets::SymbolPos pos;
-        std::function<void()> action;
+    using StateId         = regship_impl::StateId;
+    using StateTransition = regship_impl::StateTransition;
+
+    struct State {
+        StateId id;
+        std::shared_ptr<RegPosSets::SymbolPosSet> final_pos_set;
     };
 
     enum TransitionResult {
@@ -36,33 +39,24 @@ public:
         DEADSTATE
     };
 
-    using State           = regship_impl::State;
-    using StateTransition = regship_impl::StateTransition;
-    using PosActions      = std::vector<PosAction>;
-
     RegDFA() = delete;
     RegDFA(const RegDFA &) = delete;
     RegDFA(RegDFA &&) = delete;
     RegDFA &operator=(const RegDFA &) = delete;
     RegDFA &operator=(RegDFA &&) = delete;
 
-    RegDFA(const RegPosSets &);
+    RegDFA(const RegPosSets &, const RegPosSets::SymbolPosSet &final_pos_set);
 
     ~RegDFA() = default;
 
     TransitionResult do_transition(const RegSymbol);
 
-    void set_pos_action(RegPosSets::SymbolPos, PosAction);
+    const State &get_current_state() const;
 
-    const PosActions &current_pos_actions() const;
-
-    State current_state() const;
-
-    void set_current_state(State);
+    void set_current_state(const State &);
 
 private:
     std::unordered_map<StateTransition, State> dfa_table;
-    std::unordered_map<State, PosActions> pos_actions;
     State dfa_current_state;
 };
 

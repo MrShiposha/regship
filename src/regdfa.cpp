@@ -3,6 +3,8 @@
 #include "regdfa.hpp"
 #include "util.hpp"
 
+static auto EMPTY_SET = std::make_shared<RegPosSets::SymbolPosSet>();
+
 namespace std {
     template <>
     struct hash<RegPosSets::SymbolPosSet> {
@@ -29,21 +31,21 @@ namespace std {
     };
 }
 
-RegPosSets::SymbolPosSet intersect_pos_sets(
+std::shared_ptr<RegPosSets::SymbolPosSet> intersect_pos_sets(
     RegPosSets::SymbolPosSet a,
     RegPosSets::SymbolPosSet b
 ) {
-    RegPosSets::SymbolPosSet result;
+    auto result = std::make_shared<RegPosSets::SymbolPosSet>();
     for (auto &&it : a) {
         if (b.find(it) != b.end()) {
-            result.emplace(it);
+            result->emplace(it);
         }
     }
 
-    return result;
+    return (result->empty() ? EMPTY_SET : result);
 }
 
-RegDFA::RegDFA(const RegPosSets &pos_sets) {
+RegDFA::RegDFA(const RegPosSets &pos_sets, const RegPosSets::SymbolPosSet &final_pos_set) {
     using Hasher = std::hash<RegPosSets::SymbolPosSet>;
     using PosSetAndState = std::pair<RegPosSets::SymbolPosSet, State>;
 
@@ -53,7 +55,13 @@ RegDFA::RegDFA(const RegPosSets &pos_sets) {
     RegPosSets::SymbolPosSet new_set;
 
     auto first_set = pos_sets.first();
-    auto first_state = hasher(first_set);
+    auto first_state_id = hasher(first_set);
+    auto first_state_final_set = intersect_pos_sets(
+        first_set,
+        final_pos_set
+    );
+
+    State first_state { first_state_id, first_state_final_set };
 
     dfa_current_state = first_state;
     unvisited.push({ first_set, first_state });
@@ -68,7 +76,7 @@ RegDFA::RegDFA(const RegPosSets &pos_sets) {
 
             auto valid_pos_set = intersect_pos_sets(sym_pos_set, current_set);
 
-            for (auto &&pos : valid_pos_set) {
+            for (auto &&pos : *valid_pos_set) {
                 auto &follow_pos = pos_sets.follow(pos);
 
                 new_set.insert(
@@ -81,13 +89,19 @@ RegDFA::RegDFA(const RegPosSets &pos_sets) {
                 continue;
             }
 
-            auto new_state = hasher(new_set);
+            auto new_state_id = hasher(new_set);
+            auto new_state_final_set = intersect_pos_sets(
+                new_set,
+                final_pos_set
+            );
+
+            State new_state { new_state_id, new_state_final_set };
 
             if (visited.find(new_set) == visited.end()) {
                 unvisited.push({new_set, new_state});
             }
 
-            StateTransition transition(current_state, symbol);
+            StateTransition transition(current_state.id, symbol);
             dfa_table.emplace(transition, new_state);
         }
 
@@ -96,7 +110,7 @@ RegDFA::RegDFA(const RegPosSets &pos_sets) {
 }
 
 RegDFA::TransitionResult RegDFA::do_transition(const RegSymbol symbol) {
-    StateTransition transition(dfa_current_state, symbol);
+    StateTransition transition(dfa_current_state.id, symbol);
 
     auto next_state_it = dfa_table.find(transition);
 
@@ -108,27 +122,10 @@ RegDFA::TransitionResult RegDFA::do_transition(const RegSymbol symbol) {
     }
 }
 
-void RegDFA::set_pos_action(RegPosSets::SymbolPos pos, RegDFA::PosAction action) {
-    auto &&[it, _] = pos_actions.try_emplace(pos, PosActions());
-    it->second.push_back(action);
-}
-
-const RegDFA::PosActions &RegDFA::current_pos_actions() const {
-    static PosActions no_actions;
-
-    auto it = pos_actions.find(dfa_current_state);
-
-    if (it != pos_actions.end()) {
-        return it->second;
-    } else {
-        return no_actions;
-    }
-}
-
-RegDFA::State RegDFA::current_state() const {
+const RegDFA::State &RegDFA::get_current_state() const {
     return dfa_current_state;
 }
 
-void RegDFA::set_current_state(RegDFA::State state) {
+void RegDFA::set_current_state(const RegDFA::State &state) {
     dfa_current_state = state;
 }
