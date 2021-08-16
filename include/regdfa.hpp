@@ -24,7 +24,7 @@ namespace std {
     };
 }
 
-class RegDFA {
+class RegDFA final {
 public:
     using StateId         = regship_impl::StateId;
     using StateTransition = regship_impl::StateTransition;
