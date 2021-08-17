@@ -27,5 +27,5 @@ RegSymbol read_reg_symbol(const std::string_view str) {
     for (++it; it != end && !is_unicode_first_byte(*it); ++it);
 
     auto sz = (it - beg);
-    return std::string_view(str.data(), sz);
+    return str.substr(0, sz);
 }
