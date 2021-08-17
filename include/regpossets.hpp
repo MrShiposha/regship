@@ -3,9 +3,8 @@
 
 #include <unordered_set>
 #include <unordered_map>
-#include <string_view>
 
-using RegSymbol = std::string_view;
+#include "regsymbol.hpp"
 
 class RegPosSets final {
 public:

@@ -11,7 +11,7 @@ bool is_unicode_first_byte(unsigned char byte) {
     return (byte & 0xC0) != 0x80;
 }
 
-std::string_view read_symbol(const std::string_view str) {
+RegSymbol read_reg_symbol(const std::string_view str) {
     auto beg = str.begin();
     auto it = beg;
     auto end = str.end();

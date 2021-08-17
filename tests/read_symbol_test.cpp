@@ -2,26 +2,26 @@
 
 #include "util.hpp"
 
-TEST_CASE("read_symbol Read from empty string", "[read_symbol]") {
-    auto sym = read_symbol("");
+TEST_CASE("read_reg_symbol Read from empty string", "[read_reg_symbol]") {
+    auto sym = read_reg_symbol("");
 
     CHECK(sym.empty());
 }
 
-TEST_CASE("read_symbol Read ASCII sym", "[read_symbol]") {
-    auto sym = read_symbol("foo");
+TEST_CASE("read_reg_symbol Read ASCII sym", "[read_reg_symbol]") {
+    auto sym = read_reg_symbol("foo");
 
     CHECK((sym == "f"));
 }
 
-TEST_CASE("read_symbol Read Russian sym", "[read_symbol]") {
-    auto sym = read_symbol("фу");
+TEST_CASE("read_reg_symbol Read Russian sym", "[read_reg_symbol]") {
+    auto sym = read_reg_symbol("фу");
 
     CHECK((sym == "ф"));
 }
 
-TEST_CASE("read_symbol Read German sym", "[read_symbol]") {
-    auto sym = read_symbol("über");
+TEST_CASE("read_reg_symbol Read German sym", "[read_reg_symbol]") {
+    auto sym = read_reg_symbol("über");
 
     CHECK((sym == "ü"));
 }
