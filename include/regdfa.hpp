@@ -7,27 +7,12 @@
 #include <vector>
 
 #include "regpossets.hpp"
-#include "util.hpp"
-
-namespace regship_impl {
-    using StateId = size_t;
-    using StateTransition = std::pair<StateId, RegSymbol>;
-}
-
-namespace std {
-    template <>
-    struct hash<regship_impl::StateTransition> {
-        size_t operator()(const regship_impl::StateTransition &transition) const {
-            using Hasher = std::hash<RegSymbol>;
-            return combine_hashes(transition.first, Hasher{}(transition.second));
-        }
-    };
-}
+#include "impl/regdfa.hpp"
 
 class RegDFA final {
 public:
-    using StateId         = regship_impl::StateId;
-    using StateTransition = regship_impl::StateTransition;
+    using StateId         = regship_impl::RegDfaStateId;
+    using StateTransition = regship_impl::RegDfaStateTransition;
 
     struct State {
         StateId id;
@@ -41,7 +26,7 @@ public:
 
     RegDFA() = delete;
     RegDFA(const RegDFA &) = delete;
-    RegDFA(RegDFA &&) = delete;
+    RegDFA(RegDFA &&) = default;
     RegDFA &operator=(const RegDFA &) = delete;
     RegDFA &operator=(RegDFA &&) = delete;
 
