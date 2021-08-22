@@ -16,7 +16,7 @@ public:
 
     struct State {
         StateId id;
-        std::shared_ptr<RegPosSets::SymbolPosSet> final_pos_set;
+        bool is_final;
     };
 
     enum TransitionResult {
@@ -30,7 +30,7 @@ public:
     RegDFA &operator=(const RegDFA &) = delete;
     RegDFA &operator=(RegDFA &&) = delete;
 
-    RegDFA(const RegPosSets &, const RegPosSets::SymbolPosSet &final_pos_set);
+    RegDFA(const RegPosSets &, const RegPosSets::SymbolPos &final_pos);
 
     ~RegDFA() = default;
 

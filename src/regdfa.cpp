@@ -45,7 +45,7 @@ std::shared_ptr<RegPosSets::SymbolPosSet> intersect_pos_sets(
     return (result->empty() ? EMPTY_SET : result);
 }
 
-RegDFA::RegDFA(const RegPosSets &pos_sets, const RegPosSets::SymbolPosSet &final_pos_set) {
+RegDFA::RegDFA(const RegPosSets &pos_sets, const RegPosSets::SymbolPos &final_pos) {
     using Hasher = std::hash<RegPosSets::SymbolPosSet>;
     using PosSetAndState = std::pair<RegPosSets::SymbolPosSet, State>;
 
@@ -56,12 +56,9 @@ RegDFA::RegDFA(const RegPosSets &pos_sets, const RegPosSets::SymbolPosSet &final
 
     auto first_set = pos_sets.first();
     auto first_state_id = hasher(first_set);
-    auto first_state_final_set = intersect_pos_sets(
-        first_set,
-        final_pos_set
-    );
+    auto is_first_state_final = (first_set.count(final_pos) > 0);
 
-    State first_state { first_state_id, first_state_final_set };
+    State first_state { first_state_id, is_first_state_final };
 
     dfa_current_state = first_state;
     unvisited.push({ first_set, first_state });
@@ -90,12 +87,9 @@ RegDFA::RegDFA(const RegPosSets &pos_sets, const RegPosSets::SymbolPosSet &final
             }
 
             auto new_state_id = hasher(new_set);
-            auto new_state_final_set = intersect_pos_sets(
-                new_set,
-                final_pos_set
-            );
+            auto is_new_state_final = (new_set.count(final_pos) > 0);
 
-            State new_state { new_state_id, new_state_final_set };
+            State new_state { new_state_id, is_new_state_final };
 
             if (visited.find(new_set) == visited.end()) {
                 unvisited.push({new_set, new_state});

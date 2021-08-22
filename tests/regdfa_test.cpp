@@ -1,12 +1,15 @@
+#include <limits>
+
 #include "catch2/catch_test_macros.hpp"
 
 #include "regdfa.hpp"
 
-static RegPosSets::SymbolPosSet EMPTY_SET;
+static const RegPosSets::SymbolPos IMPOSSIBLE_POS =
+    std::numeric_limits<RegPosSets::SymbolPos>::max();
 
 TEST_CASE("RegDFA Test empty", "[RegDFA]") {
     RegPosSets empty("");
-    RegDFA dfa(empty, EMPTY_SET);
+    RegDFA dfa(empty, IMPOSSIBLE_POS);
 
     auto first_state = dfa.get_current_state();
 
@@ -18,7 +21,7 @@ TEST_CASE("RegDFA Test empty", "[RegDFA]") {
 
 TEST_CASE("RegDFA Test one symbol", "[RegDFA]") {
     RegPosSets a_pos_sets("a");
-    RegDFA dfa(a_pos_sets, EMPTY_SET);
+    RegDFA dfa(a_pos_sets, IMPOSSIBLE_POS);
 
     auto first_state = dfa.get_current_state();
 
@@ -33,7 +36,7 @@ TEST_CASE("RegDFA Test one symbol", "[RegDFA]") {
 TEST_CASE("RegDFA Test concat", "[RegDFA]") {
     {
         auto concat = RegPosSets("a").concat("b");
-        RegDFA dfa(concat, EMPTY_SET);
+        RegDFA dfa(concat, IMPOSSIBLE_POS);
 
         auto first_state = dfa.get_current_state();
 
@@ -48,7 +51,7 @@ TEST_CASE("RegDFA Test concat", "[RegDFA]") {
 
     {
         auto concat = RegPosSets("a").concat("b").concat("b");
-        RegDFA dfa(concat, EMPTY_SET);
+        RegDFA dfa(concat, IMPOSSIBLE_POS);
 
         auto first_state = dfa.get_current_state();
 
@@ -69,7 +72,7 @@ TEST_CASE("RegDFA Test concat", "[RegDFA]") {
 
 TEST_CASE("RegDFA Test Or Concat", "[RegDFA]") {
     auto expr = RegPosSets("a").or("b").concat("c");
-    RegDFA dfa(expr, EMPTY_SET);
+    RegDFA dfa(expr, IMPOSSIBLE_POS);
 
     auto first_state = dfa.get_current_state();
 
@@ -92,7 +95,7 @@ TEST_CASE("RegDFA Test Or Concat", "[RegDFA]") {
 
 TEST_CASE("RegDFA Test Concat Or", "[RegDFA]") {
     auto expr = RegPosSets("a").concat(RegPosSets("b").or("c"));
-    RegDFA dfa(expr, EMPTY_SET);
+    RegDFA dfa(expr, IMPOSSIBLE_POS);
 
     auto first_state = dfa.get_current_state();
 
@@ -115,7 +118,7 @@ TEST_CASE("RegDFA Test Concat Or", "[RegDFA]") {
 
 TEST_CASE("RegDFA Test Star", "[RegDFA]") {
     auto expr = RegPosSets("a").star();
-    RegDFA dfa(expr, EMPTY_SET);
+    RegDFA dfa(expr, IMPOSSIBLE_POS);
 
     auto first_state = dfa.get_current_state();
 
@@ -128,7 +131,7 @@ TEST_CASE("RegDFA generic expr", "[RegDFA]") {
                 .concat("a")
                 .concat("b")
                 .concat("b");
-    RegDFA dfa(expr, EMPTY_SET);
+    RegDFA dfa(expr, IMPOSSIBLE_POS);
 
     auto first_state = dfa.get_current_state();
 
@@ -179,31 +182,30 @@ TEST_CASE("RegDFA generic expr", "[RegDFA]") {
 }
 
 TEST_CASE("RegDFA Test final set", "[RegDFA]") {
-    RegPosSets final_1("c"), final_2("b");
-    auto expr = (RegPosSets("a").concat("b").concat(final_1))
-                .or(RegPosSets("a").concat("c").concat(final_2));
+    RegPosSets final_pos_sets("F");
+    auto expr = (
+        (RegPosSets("a").concat("b"))
+        .or(RegPosSets("a").concat("c"))
+    ).concat(final_pos_sets);
 
-    auto final_1_pos = *final_1.first().cbegin();
-    auto final_2_pos = *final_2.first().cbegin();
+    auto final_pos = *final_pos_sets.first().cbegin();
 
-    RegPosSets::SymbolPosSet final_set = { final_1_pos, final_2_pos };
-
-    RegDFA dfa(expr, final_set);
+    RegDFA dfa(expr, final_pos);
 
     auto first_state = dfa.get_current_state();
 
     CHECK(dfa.do_transition("a") == RegDFA::SUCCESS);
     REQUIRE(dfa.get_current_state().id != first_state.id);
-    CHECK(first_state.final_pos_set->empty());
+    CHECK(!first_state.is_final);
 
     auto second_state = dfa.get_current_state();
-    CHECK(second_state.final_pos_set->empty());
+    CHECK(!second_state.is_final);
 
     CHECK(dfa.do_transition("b") == RegDFA::SUCCESS);
     REQUIRE(dfa.get_current_state().id != second_state.id);
 
     auto third_state = dfa.get_current_state();
-    CHECK(third_state.final_pos_set->count(final_1_pos) > 0);
+    CHECK(third_state.is_final);
 
     dfa.set_current_state(first_state);
     dfa.do_transition("a");
@@ -212,5 +214,5 @@ TEST_CASE("RegDFA Test final set", "[RegDFA]") {
     REQUIRE(dfa.get_current_state().id != second_state.id);
 
     auto fourth_state = dfa.get_current_state();
-    CHECK(fourth_state.final_pos_set->count(final_2_pos) > 0);
+    CHECK(fourth_state.is_final);
 }
