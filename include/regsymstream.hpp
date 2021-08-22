@@ -19,6 +19,8 @@ public:
 
     RegSymStream &operator>>(RegSymbol &);
 
+    RegSymbol peek() const;
+
     operator bool() const;
 
     bool operator!() const;

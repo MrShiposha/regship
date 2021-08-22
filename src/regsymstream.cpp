@@ -6,11 +6,15 @@ RegSymStream::RegSymStream(const std::string_view str)
 {}
 
 RegSymStream &RegSymStream::operator>>(RegSymbol &out) {
-    auto symbol = read_reg_symbol(str);
+    auto symbol = this->peek();
     str.remove_prefix(symbol.size());
 
     out = symbol;
     return *this;
+}
+
+RegSymbol RegSymStream::peek() const {
+    return read_reg_symbol(str);
 }
 
 RegSymStream::operator bool() const {
