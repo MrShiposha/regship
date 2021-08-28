@@ -6,13 +6,18 @@
 #include <string_view>
 #include <vector>
 #include <stack>
+#include <functional>
 
+#include "regpossets.hpp"
 #include "regmatcher.hpp"
+#include "regparserattr.hpp"
 #include "impl/regparser.hpp"
 
 class RegParser final {
 public:
     using GrammarSymbol = regship_impl::RegParserGrammarSymbol;
+    using Attr          = RegParserAttr;
+    using AttrPtr       = std::shared_ptr<Attr>;
 
     RegParser();
     RegParser(const RegParser &) = delete;
@@ -27,8 +32,15 @@ public:
     bool is_terminal(GrammarSymbol) const;
 
 private:
-    using StateTransition = regship_impl::RegParserStateTransition;
-    using ProductionBody  = std::vector<GrammarSymbol>;
+    struct AnnotatedGrammarSymbol {
+        AnnotatedGrammarSymbol(GrammarSymbol);
+
+        GrammarSymbol kind;
+        AttrPtr inh_attr, syn_attr;
+    };
+
+    using StateTransition  = regship_impl::RegParserStateTransition;
+    using ProductionAction = std::function<void(AnnotatedGrammarSymbol &)>;
 
     void setup_transitions();
     void setup_expr_transitions();
@@ -40,10 +52,11 @@ private:
     void setup_atom_transitions();
     void setup_star_transitions();
 
-    static ProductionBody EMPTY;
+    static void empty_prod_expansion(AnnotatedGrammarSymbol &);
+    static void inh_to_syn_prod_expansion(AnnotatedGrammarSymbol &);
 
-    std::unordered_map<StateTransition, ProductionBody> ll_table;
-    std::stack<GrammarSymbol> state_stack;
+    std::unordered_map<StateTransition, ProductionAction> ll_table;
+    std::stack<AnnotatedGrammarSymbol> symbol_stack;
 };
 
 #endif // ___REGSHIP_REGPARSER_HPP___

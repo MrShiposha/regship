@@ -88,45 +88,47 @@ void throw_unexpected_token(const Token &token) {
 }
 
 RegMatcher RegParser::parse(const std::string_view str) {
-    state_stack = std::stack<GrammarSymbol>();
-    state_stack.push(GrammarSymbol::END);
-    state_stack.push(GrammarSymbol::expr);
+    symbol_stack = std::stack<AnnotatedGrammarSymbol>();
+
+    AnnotatedGrammarSymbol start_symbol(GrammarSymbol::expr);
+
+    symbol_stack.push(start_symbol);
 
     TokenStream stream(str);
     Token cur_token;
-    GrammarSymbol cur_grammar_sym;
 
     stream >> cur_token;
 
-    while ((cur_grammar_sym = state_stack.top()) != GrammarSymbol::END) {
-        if (cur_grammar_sym == cur_token.kind) {
-            state_stack.pop();
+    while (!symbol_stack.empty()) {
+        AnnotatedGrammarSymbol cur_grammar_sym = symbol_stack.top();
+
+        if (cur_grammar_sym.kind == cur_token.kind) {
+            cur_grammar_sym.syn_attr->set_value(cur_token.symbol);
+
+            symbol_stack.pop();
             stream >> cur_token;
             continue;
-        } else if (is_terminal(cur_grammar_sym)) {
+        } else if (is_terminal(cur_grammar_sym.kind)) {
             throw_unexpected_token(cur_token);
         }
 
-        auto state_transition = StateTransition(cur_grammar_sym, cur_token.kind);
+        auto state_transition = StateTransition(cur_grammar_sym.kind, cur_token.kind);
         auto prod_it = ll_table.find(state_transition);
         if (prod_it == ll_table.end()) {
             throw_unexpected_token(cur_token);
         }
 
-        state_stack.pop();
+        symbol_stack.pop();
 
-        auto prod_body_it = prod_it->second.crbegin();
-        auto prod_end = prod_it->second.crend();
-        for (; prod_body_it != prod_end; ++prod_body_it) {
-            state_stack.push(*prod_body_it);
-        }
+        auto &prod_expansion = prod_it->second;
+        prod_expansion(cur_grammar_sym);
     }
 
     if (cur_token.kind != GrammarSymbol::END) {
         throw_unexpected_token(cur_token);
     }
 
-    return RegMatcher();
+    return RegMatcher(start_symbol.syn_attr->value());
 }
 
 bool RegParser::is_terminal(GrammarSymbol symbol) const {
@@ -155,123 +157,194 @@ void RegParser::setup_transitions() {
     setup_star_transitions();
 }
 
+void RegParser::empty_prod_expansion(AnnotatedGrammarSymbol &) {}
+
+void RegParser::inh_to_syn_prod_expansion(AnnotatedGrammarSymbol &sym) {
+    sym.syn_attr->set_value(sym.inh_attr->value());
+}
+
 void RegParser::setup_expr_transitions() {
+    auto prod_expansion = [&](auto header) {
+        AnnotatedGrammarSymbol sym(GrammarSymbol::or);
+        sym.inh_attr = header.inh_attr;
+        sym.syn_attr = header.syn_attr;
+
+        symbol_stack.push(sym);
+    };
+
     ll_table.emplace(
         StateTransition(GrammarSymbol::expr, GrammarSymbol::SYMBOL),
-        ProductionBody { GrammarSymbol::or }
+        prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::expr, GrammarSymbol::OPEN_PAREN),
-        ProductionBody { GrammarSymbol::or }
+        prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::expr, GrammarSymbol::END),
-        EMPTY
+        empty_prod_expansion
     );
 }
 
 void RegParser::setup_or_transitions() {
-    ProductionBody body = { GrammarSymbol::ct, GrammarSymbol::or_rest };
+    auto prod_expansion = [&](auto header) {
+        AnnotatedGrammarSymbol ct_sym(GrammarSymbol::ct);
+        AnnotatedGrammarSymbol or_rest_sym(GrammarSymbol::or_rest);
+
+        ct_sym.inh_attr = header.inh_attr;
+        or_rest_sym.inh_attr = ct_sym.syn_attr;
+        or_rest_sym.syn_attr = header.syn_attr;
+
+        symbol_stack.push(or_rest_sym);
+        symbol_stack.push(ct_sym);
+    };
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::or, GrammarSymbol::SYMBOL),
-        body
+        prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::or, GrammarSymbol::OPEN_PAREN),
-        body
+        prod_expansion
     );
 }
 
 void RegParser::setup_or_rest_transitions() {
+    auto prod_expansion = [&](auto header) {
+        AnnotatedGrammarSymbol ct_sym(GrammarSymbol::ct);
+        AnnotatedGrammarSymbol or_rest_sym(GrammarSymbol::or_rest);
+
+        or_rest_sym.inh_attr = header.inh_attr->defer_or(ct_sym.syn_attr);
+        or_rest_sym.syn_attr = header.syn_attr;
+
+        symbol_stack.push(or_rest_sym);
+        symbol_stack.push(ct_sym);
+        symbol_stack.push({ GrammarSymbol::OR });
+    };
+
+    ll_table.emplace(
+        StateTransition(GrammarSymbol::or_rest, GrammarSymbol::OR),
+        prod_expansion
+    );
+
     ll_table.emplace(
         StateTransition(GrammarSymbol::or_rest, GrammarSymbol::CLOSE_PAREN),
-        EMPTY
+        inh_to_syn_prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::or_rest, GrammarSymbol::END),
-        EMPTY
-    );
-
-    ll_table.emplace(
-        StateTransition(GrammarSymbol::or_rest, GrammarSymbol::OR),
-        ProductionBody { GrammarSymbol::OR, GrammarSymbol::ct, GrammarSymbol::or_rest }
+        inh_to_syn_prod_expansion
     );
 }
 
 void RegParser::setup_ct_transitions() {
-    ProductionBody body = { GrammarSymbol::term, GrammarSymbol::ct_rest };
+    auto prod_expansion = [&](auto header) {
+        AnnotatedGrammarSymbol term_sym(GrammarSymbol::term);
+        AnnotatedGrammarSymbol ct_rest_sym(GrammarSymbol::ct_rest);
+
+        ct_rest_sym.inh_attr = header.inh_attr->defer_concat(term_sym.syn_attr);
+        ct_rest_sym.syn_attr = header.syn_attr;
+
+        symbol_stack.push(ct_rest_sym);
+        symbol_stack.push(term_sym);
+    };
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::ct, GrammarSymbol::SYMBOL),
-        body
+        prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::ct, GrammarSymbol::OPEN_PAREN),
-        body
+        prod_expansion
     );
 }
 
 void RegParser::setup_ct_rest_transitions() {
-    ProductionBody body = { GrammarSymbol::term, GrammarSymbol::ct_rest };
+    auto prod_expansion = [&](auto header) {
+        AnnotatedGrammarSymbol term_sym(GrammarSymbol::term);
+        AnnotatedGrammarSymbol ct_rest_sym(GrammarSymbol::ct_rest);
+
+        ct_rest_sym.inh_attr = header.inh_attr->defer_concat(term_sym.syn_attr);
+        ct_rest_sym.syn_attr = header.syn_attr;
+
+        symbol_stack.push(ct_rest_sym);
+        symbol_stack.push(term_sym);
+    };
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::ct_rest, GrammarSymbol::SYMBOL),
-        body
+        prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::ct_rest, GrammarSymbol::OPEN_PAREN),
-        body
+        prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::ct_rest, GrammarSymbol::CLOSE_PAREN),
-        EMPTY
+        inh_to_syn_prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::ct_rest, GrammarSymbol::OR),
-        EMPTY
+        inh_to_syn_prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::ct_rest, GrammarSymbol::END),
-        EMPTY
+        inh_to_syn_prod_expansion
     );
 }
 
 void RegParser::setup_term_transitions() {
-    ProductionBody body = { GrammarSymbol::atom, GrammarSymbol::star };
+    auto prod_expansion = [&](auto header) {
+        AnnotatedGrammarSymbol atom_sym(GrammarSymbol::atom);
+        AnnotatedGrammarSymbol star_sym(GrammarSymbol::star);
+
+        star_sym.inh_attr = atom_sym.syn_attr;
+        star_sym.syn_attr = header.syn_attr;
+
+        symbol_stack.push(star_sym);
+        symbol_stack.push(atom_sym);
+    };
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::term, GrammarSymbol::SYMBOL),
-        body
+        prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::term, GrammarSymbol::OPEN_PAREN),
-        body
+        prod_expansion
     );
 }
 
 void RegParser::setup_atom_transitions() {
     ll_table.emplace(
         StateTransition(GrammarSymbol::atom, GrammarSymbol::SYMBOL),
-        ProductionBody { GrammarSymbol::SYMBOL }
+        [&](auto header) {
+            AnnotatedGrammarSymbol sym(GrammarSymbol::SYMBOL);
+            sym.syn_attr = header.syn_attr;
+
+            symbol_stack.push(sym);
+        }
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::atom, GrammarSymbol::OPEN_PAREN),
-        ProductionBody {
-            GrammarSymbol::OPEN_PAREN,
-            GrammarSymbol::expr,
-            GrammarSymbol::CLOSE_PAREN
+        [&](auto header) {
+            AnnotatedGrammarSymbol expr_sym(GrammarSymbol::expr);
+            expr_sym.syn_attr = header.syn_attr;
+
+            symbol_stack.push({ GrammarSymbol::CLOSE_PAREN });
+            symbol_stack.push(expr_sym);
+            symbol_stack.push({ GrammarSymbol::OPEN_PAREN });
         }
     );
 }
@@ -279,33 +352,41 @@ void RegParser::setup_atom_transitions() {
 void RegParser::setup_star_transitions() {
     ll_table.emplace(
         StateTransition(GrammarSymbol::star, GrammarSymbol::STAR),
-        ProductionBody { GrammarSymbol::STAR }
+        [&](auto header) {
+            header.syn_attr->set_value(header.inh_attr->value().star());
+
+            symbol_stack.push({ GrammarSymbol::STAR });
+        }
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::star, GrammarSymbol::SYMBOL),
-        EMPTY
+        inh_to_syn_prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::star, GrammarSymbol::OPEN_PAREN),
-        EMPTY
+        inh_to_syn_prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::star, GrammarSymbol::CLOSE_PAREN),
-        EMPTY
+        inh_to_syn_prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::star, GrammarSymbol::OR),
-        EMPTY
+        inh_to_syn_prod_expansion
     );
 
     ll_table.emplace(
         StateTransition(GrammarSymbol::star, GrammarSymbol::END),
-        EMPTY
+        inh_to_syn_prod_expansion
     );
 }
 
-RegParser::ProductionBody RegParser::EMPTY;
+RegParser::AnnotatedGrammarSymbol::AnnotatedGrammarSymbol(GrammarSymbol kind)
+    : kind(kind),
+    inh_attr(Attr::mk_attr()),
+    syn_attr(Attr::mk_attr())
+{}

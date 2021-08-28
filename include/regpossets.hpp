@@ -11,9 +11,12 @@ public:
     using SymbolPos = size_t;
     using SymbolPosSet = std::unordered_set<SymbolPos>;
 
-    RegPosSets() = delete;
-    RegPosSets &operator=(const RegPosSets &) = delete;
-    RegPosSets &operator=(RegPosSets &&) = delete;
+    RegPosSets() = default;
+    RegPosSets(const RegPosSets &) = default;
+    RegPosSets(RegPosSets &&) = default;
+
+    RegPosSets &operator=(const RegPosSets &) = default;
+    RegPosSets &operator=(RegPosSets &&) = default;
 
     ~RegPosSets() = default;
 
@@ -38,9 +41,6 @@ public:
     const std::unordered_map<RegSymbol, SymbolPosSet> &symbol_occurrences() const;
 
 private:
-    RegPosSets(const RegPosSets &) = default;
-    RegPosSets(RegPosSets &&) = default;
-
     void set_follow_pos(SymbolPos, const SymbolPosSet &);
     void append_required_info(const RegPosSets &);
 

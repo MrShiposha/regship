@@ -66,6 +66,11 @@ RegPosSets RegPosSets::nullable() const {
 }
 
 void RegPosSets::concat_inplace(const RegPosSets &other) {
+    if (first_set.empty()) {
+        *this = other;
+        return;
+    }
+
     for (auto &&left_last_pos : last_set) {
         set_follow_pos(left_last_pos, other.first_set);
     }
