@@ -5,9 +5,11 @@ option(BUILD_TESTS "Build tests for the project" ON)
 
 file(GLOB SRC ${CMAKE_SOURCE_DIR}/src/*.cpp)
 
-include_directories(${CMAKE_SOURCE_DIR}/include)
-
 add_executable(${PROJECT_NAME} ${SRC})
+target_include_directories(${PROJECT_NAME}
+    PRIVATE ${CMAKE_SOURCE_DIR}/include
+)
+
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 
 if (BUILD_TESTS)

@@ -8,12 +8,15 @@ file(GLOB SRC
 
 list(REMOVE_ITEM SRC "${CMAKE_CURRENT_SOURCE_DIR}/../src/main.cpp")
 
-include_directories(
+add_executable(${PROJECT_NAME} ${SRC})
+
+target_include_directories(${PROJECT_NAME}
+    PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_CURRENT_SOURCE_DIR}/../deps/catch2/src
 )
 
-add_executable(${PROJECT_NAME} ${SRC})
 target_link_libraries(${PROJECT_NAME} PRIVATE Catch2::Catch2WithMain)
+
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
